@@ -3,13 +3,19 @@
 Ordem priorizada. Cada item só é marcado concluído com implementação,
 integração e testes — não por existência de interface.
 
-## 1. Decoding real (próximo grande passo)
-- Decisão ADR-006 executada: linking de libavcodec/libavformat (escolha de
-  licença/compilação LGPL vs GPL, build via FetchContent ou sistema) OU
-  processo decodificador separado com pipe.
-- `IDecoder` real para vídeo (h264/hevc + 4:2:0 8-bit primeiro), seek
-  keyframe/exato, decode de áudio (PCM float).
-- Testes com fixtures sintéticas (lavfi) redistribuíveis.
+## 1. Decodificação real — ✅ CONCLUÍDO (Fase 2)
+- [x] ADR-008: vinculação dinâmica LGPL de libav* (isolada em
+  `src/media/ffmpeg/`; zero tipos AV* na API pública).
+- [x] `IVideoDecoder` real: H.264 (qualquer pixel format via sws→RGBA8
+  packed), seek Exact com forward-decode, Keyframe, EOS, cancelamento,
+  destruição segura. Outros codecs entram conforme os decoders LGPL do
+  build do FFmpeg usado.
+- [x] `IAudioDecoder` real: planar float32 via swresample, seek, EOS.
+- [x] `FrameRequestor` (media-id + ticks → frame, stale-reject, cancel).
+- [x] Benchmarks: open 1232 ms / first frame 121 ms / seek+frame 613 ms /
+  146 fps sequenciais @1080p30 / áudio 977x realtime (MSVC Release, dev).
+- [ ] Próximo dentro do tema: decoder cache por MediaId (evitar open por
+  request); decodificação por JOB para thumbnails em lote.
 
 ## 2. Playback de preview
 - Scheduler de frames: clock mestre, fila de solicitações, cancelamento de

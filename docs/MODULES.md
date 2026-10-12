@@ -50,11 +50,28 @@ Nada além disso. Sem inflação de estado.
   (edição de timeline), entrega por `shared_ptr` (entrada evictada segue
   viva para quem a segura), estatísticas exatas (hits/misses/evictions).
 
-## playback — 🟡 parcial
-- ✅ Máquina de estados (transições estritas) testada.
-- 📋 Contrato `IDecoder`/`DecodedFrame`/`SeekMode` definido (sem impl real).
-- ⛔ Ausente: decode real, seek, scheduling, clock de áudio, buffering,
-  cancelamento de frames obsoletos. **Não há playback em tempo real.**
+## playback — 🟢 decode REAL implementado (Fase 2)
+- ✅ `IVideoDecoder`/`IAudioDecoder` (contratos revisados) + `AvVideoDecoder`
+  e `AvAudioDecoder` sobre libav (ADR-008): open/info, seek Exact (com
+  forward-decode até o alvo) e Keyframe, read_frame/read_block com
+  polling de cancelamento, EOS explícito, erros mapeados
+  (NotFound/Unsupported/ParseError/OutOfRange/Cancelled).
+- ✅ Vídeo: saída RGBA8 packed (stride = w*4, buffer próprio
+  shared_ptr), pts preservado, keyframe flag, mudança de tamanho
+  mid-stream suportada. Sem AV* nos headers públicos.
+- ✅ Áudio: planar float32 (mesma convenção de veltrix::audio), blocos de
+  tamanho variável, sample_rate/canais/pts, swresample para conversão.
+- ✅ `FrameRequestor`: media-id + ticks → frame; rejeição de request
+  obsoleta (Conflict "superseded"), cancelamento (token compartilhado),
+  resolver sobre MediaRegistry (faltante → MediaUnavailable).
+- ✅ `IDecoderFactory` + `AvDecoderFactory` (engine_name para diagnostics);
+  build sem SDK degrada com `Unsupported` explícito (sem crash).
+- ✅ Testes: layout por frame, pts monotônico, seek início/meio/fim,
+  arquivo inválido/vazio/ausente, só-áudio/só-vídeo, contagem de amostras,
+  cancelamento, destruição sem close, 25 ciclos open/close.
+- ⛔ Ausente (roadmap): composição/pixel-blend, clock mestre, scheduling,
+  sincronização A/V, device de saída. **Playback contínuo NÃO existe** —
+  existe "frame em posição" (preview pontual), comprovado por testes.
 
 ## render — 🟡 parcial
 - ✅ `TimelineEvaluator` (clipes de vídeo/áudio ativos num instante,

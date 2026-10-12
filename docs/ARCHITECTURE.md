@@ -80,14 +80,18 @@ job em execução; cancelamento é latch one-way observado por polling do
 token; estados finais nunca regridem. Um pool real só entra quando houver
 carga que justifique — com as mesmas garantias contratuais.
 
-## Mídia (ADR-006)
+## Mídia (ADR-006 + ADR-008)
 
-O core **não** linka libav*. Análise técnica usa o binário `ffprobe`
-descoberto em runtime (PATH / `VELTRIX_FFPROBE` / caminho explícito), com
-timeout e parse JSON. Isso mantém o build limpo, a licença do core
-desacoplada das opções de compilação do FFmpeg, e a decisão de linking
-adiada com ADR documentada. Quando o decoding real entrar, a fronteira é a
-interface `IDecoder` já definida e testada com implementações fake.
+**Metadados** (probe): binário `ffprobe` externo, descoberto em runtime.
+**Decodificação** (Fase 2): libav* **linkadas dinamicamente** (LGPL),
+isoladas no alvo `veltrix-ffmpeg` — tipos `AV*` existem APENAS em
+`src/media/ffmpeg/`; nenhum header público os inclui. A API pública
+(`IVideoDecoder`/`IAudioDecoder`/`FrameRequestor`) é 100% core-owned
+(RGBA8 packed / planar f32). Sem SDK em build, a factory degrada com
+`Unsupported` explícito — nada crasha, o resto do core segue igual.
+Instabilidade de codec extrema derruba o processo (limitação documentada
+do linked approach; sandbox por processo futuro usaria a MESMA
+interface fora do processo).
 
 ## Plugins (ADR-007)
 
