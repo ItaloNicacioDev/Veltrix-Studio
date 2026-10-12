@@ -133,9 +133,10 @@ int cmd_probe(const std::string& media_path, const std::string& ffprobe_override
 
 #ifdef VELTRIX_HAS_FFMPEG
 #include <memory>
+#include "veltrix/playback/Decoder.h"
 namespace veltrix::cli {
-// Defined in cli/DecodeCommands.cpp (linked only with veltrix-ffmpeg).
-std::unique_ptr<playback::IDecoderFactory> make_decoder_factory() = delete;
+// Implemented in cli/DecodeCommands.cpp (compiled only with veltrix-ffmpeg).
+int cmd_decode(const std::string& path, int max_frames, double seek_seconds);
 }
 #endif
 
@@ -171,6 +172,20 @@ int main(int argc, char** argv) {
         if (argc < 3) { std::cerr << "error: probe requires a media path\n"; return 2; }
         return cmd_probe(argv[2], argc > 3 ? argv[3] : "");
     }
+#ifdef VELTRIX_HAS_FFMPEG
+    if (command == "decode") {
+        if (argc < 3) { std::cerr << "error: decode requires a media path\n"; return 2; }
+        const int max_frames = argc > 3 ? std::atoi(argv[3]) : 10;
+        const double seek_s = argc > 4 ? std::atof(argv[4]) : 0.0;
+        return veltrix::cli::cmd_decode(argv[2], max_frames, seek_s);
+    }
+#else
+    if (command == "decode") {
+        std::cerr << "error: this build has no decode engine "
+                     "(configure with an FFmpeg SDK: VELTRIX_FFMPEG_DIR)\n";
+        return 1;
+    }
+#endif
     std::cerr << "error: unknown command '" << command << "'\n";
     return 2;
 }
