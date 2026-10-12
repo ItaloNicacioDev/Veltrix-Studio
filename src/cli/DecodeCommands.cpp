@@ -29,7 +29,7 @@ using veltrix::playback::SeekMode;
 using veltrix::playback::VideoFrame;
 
 int cmd_decode(const std::string& path, int max_frames, double seek_seconds) {
-    ffmpeg::AvDecoderFactory factory;
+    AvDecoderFactory factory; // veltrix::media::ffmpeg:: via using above
     CancellationToken token; // never cancelled here; the CLI runs to completion
 
     // ---- video ----------------------------------------------------------------

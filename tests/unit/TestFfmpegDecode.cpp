@@ -66,8 +66,22 @@ std::filesystem::path generate_fixture(const std::string& name,
     const auto out = fixture_dir() / name;
     if (std::filesystem::exists(out)) return out; // cached from a prior run
 
-    const std::string cmd = "\"" + ffmpeg_path + "\" -y -hide_banner -loglevel error "
-        + args + " \"" + out.string() + "\"";
+    // std::system on Windows chokes on a leading double quote (cmd /c
+    // treats it as a title); use short-path-free 8.3-free workaround:
+    // wrap explicitly with cmd /c and doubled quotes only around args.
+    std::string cmd;
+#ifdef _WIN32
+    cmd = "cmd /c \"\"";
+    cmd += ffmpeg_path;
+    cmd += "\" -y -hide_banner -loglevel error ";
+    cmd += args;
+    cmd += " \"";
+    cmd += out.string();
+    cmd += "\"\"";
+#else
+    cmd = "\"" + ffmpeg_path + "\" -y -hide_banner -loglevel error " + args +
+          " \"" + out.string() + "\"";
+#endif
     const int code = std::system(cmd.c_str());
     std::error_code ec;
     if (code != 0 || !std::filesystem::exists(out, ec)) return {};

@@ -21,7 +21,9 @@ public:
     const char* engine_name() const override;
 
 private:
-    std::string engine_name_; // "libav format=.. codec=.. util=.."
+    // Lazily formatted from linked libav* versions; mutable because
+    // engine_name() is const (thread-safe: benign pre-string).
+    mutable std::string engine_name_;
 };
 
 } // namespace veltrix::media::ffmpeg
