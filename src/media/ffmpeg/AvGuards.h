@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavcodec/codec.h>
