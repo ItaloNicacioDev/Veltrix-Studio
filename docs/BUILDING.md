@@ -7,13 +7,37 @@
 | CMake | 3.24 | presets |
 | Compilador | MSVC 19.30+ / GCC 11+ / Clang 14+ | C++20 |
 | Ninja | 1.10 | gerador padrão dos presets |
-| Python | — | não requerido |
+| **FFmpeg SDK (opcional)** | libavformat/avcodec/avutil/swresample/swscale — testado com n9.0 LGPL | habilita a camada de decodificação |
 
-Sem dependências externas para compilar: as bibliotecas de terceiros
-(nlohmann/json, Catch2) estão vendored em `third_party/` (header-only).
+Sem dependências externas para compilar o CORE: as bibliotecas de
+terceiros (nlohmann/json, Catch2) estão vendored em `third_party/`.
 
-FFmpeg **não é requerido para compilar**. O `veltrix-cli probe` precisa do
-binário `ffprobe` em runtime (PATH ou variável `VELTRIX_FFPROBE`).
+**FFmpeg (camada de decode)** — opcional em build, descoberto assim:
+
+1. Defina `VELTRIX_FFMPEG_DIR` (variável CMake OU de ambiente) apontando
+   para a raiz do SDK com `include/` e `lib/`.
+   Windows (exemplo, BtbN win64-lgpl-shared):
+   https://github.com/BtbN/FFmpeg-Builds/releases →
+   `ffmpeg-n9.0-latest-win64-lgpl-shared-9.0.zip` → extrair → apontar
+   `VELTRIX_FFMPEG_DIR` para a pasta extraída.
+2. Linux: pacotes de distro (`sudo apt install libavformat-dev
+   libavcodec-dev libavutil-dev libswresample-dev libswscale-dev`) —
+   encontrados via busca padrão do CMake, sem variável.
+
+**Sem o SDK**, `veltrix-ffmpeg` e seus testes são pulados com aviso
+explícito — o resto do projeto compila idêntico (comando `decode` do CLI
+responde "no decode engine").
+
+**Runtime (Windows)**: os binários linkados contra FFmpeg (veltrix-cli,
+veltrix-tests, veltrix-bench-decode) precisam das DLLs `av*.dll`/`sw*.dll`
+ao lado do executável (ou no PATH). Em distribuição, as DLLs LGPL
+acompanham o pacote separadas do binário (relinkagem = trocar DLL).
+**Linux**: `libav*.so` do sistema.
+
+**FFmpeg binário (runtime de testes)**: os testes de decode GERAM
+fixtures sintéticas (lavfi — conteúdo próprio, redistribuível) invocando
+o `ffmpeg`; descoberta via PATH/`VELTRIX_FFPROBE` (mesma do probe).
+Sem o binário, esses casos fazem SKIP explícito — nunca passam à toa.
 
 ## Windows
 
