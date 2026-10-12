@@ -63,9 +63,9 @@ Result<VideoFrame> FrameRequestor::await_frame(const FrameRequestHandle& handle)
         return failure<VideoFrame>(seeked.error().code, seeked.error().message);
 
     // Decode forward to the frame AT the target (>= target).
-    const auto& info = decoder->stream_info();
     bool got_frame = false;
     VideoFrame result;
+    std::int64_t frames_after_seek = 0;
     while (!got_frame) {
         if (handle.token->is_cancelled())
             return failure<VideoFrame>(ErrorCode::Cancelled, "cancelled during decode");
@@ -81,13 +81,14 @@ Result<VideoFrame> FrameRequestor::await_frame(const FrameRequestHandle& handle)
             }
             return failure<VideoFrame>(err.code, err.message);
         }
+        ++frames_after_seek;
         VideoFrame f = frame.take_value();
         if (f.pts_ticks == VideoFrame::NO_TIMESTAMP) {
-            // Missing PTS: cannot prove the frame matches the target —
-            // accept the first frame after a fresh seek (documented
-            // behavior; irregular-timestamp files are surfaced, not
-            // guessed... but we must return SOMETHING after seek).
-            if (decoder->frames_decoded() == 1) {
+            // Missing PTS: cannot prove the frame matches the target.
+            // Documented behavior: accept the FIRST frame after the seek
+            // (a fresh seek positions the demuxer at the keyframe at-or-
+            // before the target, so this is the best provable answer).
+            if (frames_after_seek == 1) {
                 result = std::move(f);
                 got_frame = true;
             }
