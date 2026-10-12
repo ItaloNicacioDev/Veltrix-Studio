@@ -235,47 +235,37 @@ Result<AudioBlock> AvAudioDecoder::convert_to_planar_f32(const AVFrame& av_frame
         return failure<AudioBlock>(ErrorCode::ParseError,
                                    "audio frame has invalid layout");
 
+    // Planar float32 output: one contiguous plane per channel. libswr
+    // requires a pointer PER PLANE for FLTP output — a single pointer
+    // would be treated as one packed plane and corrupt the layout.
     auto buffer = std::make_shared<veltrix::playback::FrameBuffer>();
-    const std::size_t total_samples =
-        static_cast<std::size_t>(av_frame.nb_samples) * channels;
-    buffer->bytes.resize(total_samples * sizeof(float));
+    const std::size_t plane_samples = static_cast<std::size_t>(av_frame.nb_samples);
+    const std::size_t plane_bytes = plane_samples * sizeof(float);
+    buffer->bytes.resize(plane_bytes * channels);
 
-    // Planar float32 output: each channel contiguous.
-    std::uint8_t* dst = buffer->bytes.data();
+    std::vector<std::uint8_t*> plane_ptrs(channels);
+    for (std::int32_t ch = 0; ch < channels; ++ch)
+        plane_ptrs[ch] = buffer->bytes.data() + static_cast<std::size_t>(ch) * plane_bytes;
+
     const std::int32_t out_samples =
-        swr_convert(swr_.ctx, &dst, av_frame.nb_samples,
-                    av_frame.extended_data, av_frame.nb_samples);
+        swr_convert(swr_.ctx, plane_ptrs.data(), av_frame.nb_samples,
+                    const_cast<const std::uint8_t**>(av_frame.extended_data),
+                    av_frame.nb_samples);
     if (out_samples < 0)
         return failure<AudioBlock>(ErrorCode::ParseError,
             "swr_convert failed: " + av_error_string(out_samples));
     if (out_samples == 0)
         return failure<AudioBlock>(ErrorCode::ParseError, "swr produced 0 samples");
 
-    // NOTE: swr_convert with a single flat dst pointer writes INTERLEAVED
-    // when the out format is packed — but FLTP is planar, and libswresample
-    // requires a per-plane pointer array for planar output. We allocate a
-    // channel-pointer vector below and re-run conversion correctly.
-    std::vector<std::uint8_t*> plane_ptrs(channels);
-    const std::size_t plane_bytes =
-        static_cast<std::size_t>(out_samples) * sizeof(float);
-    for (std::int32_t ch = 0; ch < channels; ++ch)
-        plane_ptrs[ch] = buffer->bytes.data() + ch * plane_bytes;
-    const std::int32_t planar_samples = swr_convert(
-        swr_.ctx, plane_ptrs.data(), av_frame.nb_samples,
-        const_cast<const std::uint8_t**>(av_frame.extended_data), av_frame.nb_samples);
-    if (planar_samples < 0)
-        return failure<AudioBlock>(ErrorCode::ParseError,
-            "swr_convert (planar) failed: " + av_error_string(planar_samples));
-
     AudioBlock block;
     block.data = std::move(buffer);
     block.channels = channels;
     block.sample_rate = codec_.ctx->sample_rate;
-    block.frames = planar_samples;
+    block.frames = out_samples;
     block.pts_ticks = (av_frame.pts == AV_NOPTS_VALUE) ? AudioBlock::NO_TIMESTAMP
                                                        : av_frame.pts;
-    block.duration_ticks = planar_samples; // 1/sample_rate timebase
-    frames_decoded_ += planar_samples;
+    block.duration_ticks = out_samples; // 1/sample_rate timebase
+    frames_decoded_ += out_samples;
     return Result<AudioBlock>(std::move(block));
 }
 
