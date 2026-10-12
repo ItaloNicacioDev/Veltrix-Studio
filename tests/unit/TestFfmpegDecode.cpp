@@ -88,11 +88,12 @@ std::filesystem::path generate_fixture(const std::string& name,
     return out;
 }
 
-// 3 s, 320x240, 30 fps H.264 + 44.1 kHz stereo AAC (synthetic lavfi).
+// 3 s, 320x240, 30 fps H.264 + 44.1 kHz STEREO AAC (synthetic lavfi).
 std::filesystem::path fixture_av() {
     return generate_fixture("av_3s.mp4",
         "-f lavfi -i testsrc2=duration=3:size=320x240:rate=30 "
-        "-f lavfi -i sine=frequency=440:duration=3 "
+        "-f lavfi -i \"sine=frequency=440:duration=3\" "
+        "-af \"aformat=channel_layouts=stereo\" "
         "-c:v libx264 -preset ultrafast -pix_fmt yuv420p "
         "-c:a aac -b:a 128k -shortest");
 }

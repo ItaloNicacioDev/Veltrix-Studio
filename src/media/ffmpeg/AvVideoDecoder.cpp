@@ -194,6 +194,13 @@ Result<VideoFrame> AvVideoDecoder::read_frame(
             const int recv_res = avcodec_receive_frame(codec_.ctx, frame_.frame);
             if (recv_res == 0) {
                 ++frames_decoded_;
+                // Exact-seek: discard frames strictly before the target.
+                if (exact_target_ticks_ >= 0 &&
+                    frame_.frame->pts != AV_NOPTS_VALUE &&
+                    frame_.frame->pts < exact_target_ticks_) {
+                    continue; // skip forward-decode frames
+                }
+                exact_target_ticks_ = -1; // target satisfied
                 return convert_to_rgba(*frame_.frame);
             }
             if (recv_res == AVERROR_EOF || recv_res == AVERROR(EAGAIN)) {
@@ -239,6 +246,13 @@ Result<VideoFrame> AvVideoDecoder::read_frame(
         const int recv_res = avcodec_receive_frame(codec_.ctx, frame_.frame);
         if (recv_res == 0) {
             ++frames_decoded_;
+            // Exact-seek: discard frames strictly before the target.
+            if (exact_target_ticks_ >= 0 &&
+                frame_.frame->pts != AV_NOPTS_VALUE &&
+                frame_.frame->pts < exact_target_ticks_) {
+                continue;
+            }
+            exact_target_ticks_ = -1;
             return convert_to_rgba(*frame_.frame);
         }
         if (recv_res == AVERROR(EAGAIN))
