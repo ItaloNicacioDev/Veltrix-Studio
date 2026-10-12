@@ -87,8 +87,11 @@ Binários: `build/<preset>/src/veltrix-cli.exe`,
 
 ## Verificação executada nesta fundação
 
-- Configure + build Release: **OK** (MSVC 19.51.36256, Ninja, x64).
-- Testes: **394 assertions / 75 casos aprovados**.
-- CLI smoke: `info`, `new` (com e sem mídia), `check`, `probe` de MP4
-  sintético gerado por FFmpeg lavfi (h264 320x240 24/1 + aac 44100 mono,
-  3000 ms) — tudo OK, com códigos de saída corretos inclusive nas falhas.
+- Configure + build Release: **OK** (MSVC 19.51.36256, Ninja, x64) — com
+  camada FFmpeg LGPL 9.0 linkada (ADR-008).
+- Testes: **1631 assertions / 90 casos aprovados** (inclui decodificação
+  real de vídeo/áudio, seek exato, cancelamento, destruição segura).
+- CLI smoke: `info`, `new` (com e sem mídia), `check`, `probe`, `decode`
+  (frames RGBA8 reais com layout verificado) — tudo OK, com códigos de
+  saída corretos inclusive nas falhas.
+- Benchmarks de decode executados (ver benchmarks/README.md).

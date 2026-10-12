@@ -10,6 +10,20 @@ obrigatória para compilar que restrinja a distribuição.
 | nlohmann/json | 3.11.3 | MIT | serialização do projeto, parse de config/manifestos/probe | ✅ | ✅ | Sim (persistência) |
 | Catch2 | 2.13.10 | BSL-1.0 | testes unitários/integração | ✅ | ✅ | Apenas testes |
 
+## Vinculadas por dynamic linking (camada de decode — ADR-008, Fase 2)
+
+| Biblioteca | Versão testada | Licença | Como linkada | Observações de distribuição |
+|---|---|---|---|---|
+| libavformat/avcodec/avutil/swresample/swscale | n9.0.2 (BtbN win64-lgpl-shared) | **LGPL-2.1+** | **dynamic** (.dll/.so separadas do binário Veltrix) | LGPL compliance: usuário pode trocar as DLLs por build próprio (= relinkagem). Nenhum código FFmpeg é copiado no repositório. Build LGPL não contém x264 — o DECODE H.264 usa o decoder nativo LGPL do FFmpeg. |
+
+**Implicação para o binário final**: linkar libav sob LGPL dinâmico NÃO
+contamina o licenciamento GPL-3.0 do próprio código Veltrix, desde que
+(a) as DLLs sejam distribuídas separadas e substituíveis, (b) a LICENSE
+do FFmpeg e o fonte correspondente do build usado (ou oferta de fonte)
+sejam fornecidos, (c) nada impeça o usuário de relinkar. Isso está
+documentado no ADR-008 e DEPENDENCIES. Distribuições Linux usarão as
+libav*.so da distro (mesmo mecanismo).
+
 Redistribuição: MIT e BSL-1.0 são permissivas e compatíveis com GPL-3.0
 (seção "compatible licenses"); os arquivos com copyright/licença estão em
 `third_party/{nlohmann,catch2}/`. Catch2 não é linkado ao core — só ao
