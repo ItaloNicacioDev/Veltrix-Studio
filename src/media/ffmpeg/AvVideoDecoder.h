@@ -55,6 +55,10 @@ private:
     bool eof_reached_ = false;
     bool end_of_stream_signaled_ = false;
     std::int64_t frames_decoded_ = 0;
+    // Exact-seek forward decode: after seek(Exact), read_frame discards
+    // frames until pts >= this target (set to -1 once satisfied or when
+    // not in Exact mode). Cancellation still polls per packet.
+    std::int64_t exact_target_ticks_ = -1;
     std::int32_t sws_src_width_ = 0;   // sws is rebuilt if the frame size changes
     std::int32_t sws_src_height_ = 0;
     AVPixelFormat sws_src_format_ = AV_PIX_FMT_NONE;

@@ -166,6 +166,10 @@ ResultVoid AvVideoDecoder::seek(std::int64_t target_ticks, SeekMode mode) {
     }
 
     avcodec_flush_buffers(codec_.ctx);
+    // Exact mode: read_frame now discards frames until pts >= target
+    // (contract: "decode forward to the frame at/just-after the target").
+    // Keyframe mode: return the keyframe landing directly.
+    exact_target_ticks_ = (mode == SeekMode::Exact) ? target : -1;
     eof_reached_ = false;
     end_of_stream_signaled_ = false;
     return veltrix::core::success();
