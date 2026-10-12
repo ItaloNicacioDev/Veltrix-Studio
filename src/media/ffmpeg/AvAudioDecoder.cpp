@@ -8,6 +8,7 @@
 
 #include "AvAudioDecoder.h"
 
+#include <cerrno>
 #include <cstring>
 
 namespace veltrix::media::ffmpeg {
@@ -27,7 +28,7 @@ ResultVoid AvAudioDecoder::open(const std::string& path) {
     const int open_res = avformat_open_input(&format_.ctx, path.c_str(), nullptr, nullptr);
     if (open_res != 0) {
         format_.ctx = nullptr;
-        if (open_res == AVERROR_ENOENT)
+        if (open_res == AVERROR(ENOENT))
             return failure(ErrorCode::NotFound, "media file not found", path);
         return failure(ErrorCode::ParseError,
                        "avformat_open_input failed: " + av_error_string(open_res), path);
@@ -69,7 +70,7 @@ ResultVoid AvAudioDecoder::setup_audio_pipeline() {
         return failure(ErrorCode::ParseError,
                        "avcodec_parameters_to_context failed: " + av_error_string(cp));
     }
-    av_codec_set_pkt_timebase(codec_.ctx, stream->time_base);
+    codec_.ctx->pkt_timebase = stream->time_base;
     if (const int open_res = avcodec_open2(codec_.ctx, codec, nullptr); open_res < 0) {
         close();
         return failure(ErrorCode::Unsupported,

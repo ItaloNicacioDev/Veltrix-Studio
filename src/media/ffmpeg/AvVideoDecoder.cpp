@@ -17,6 +17,7 @@
 
 #include "AvVideoDecoder.h"
 
+#include <cerrno>
 #include <cstring>
 
 namespace veltrix::media::ffmpeg {
@@ -39,7 +40,7 @@ ResultVoid AvVideoDecoder::open(const std::string& path) {
                                              forced_format, nullptr);
     if (open_res != 0) {
         format_.ctx = nullptr; // avformat frees on failure
-        if (open_res == AVERROR_ENOENT)
+        if (open_res == AVERROR(ENOENT))
             return failure(ErrorCode::NotFound, "media file not found", path);
         if (open_res == AVERROR_INVALIDDATA)
             return failure(ErrorCode::ParseError, "invalid or empty media file", path);
@@ -93,7 +94,7 @@ ResultVoid AvVideoDecoder::setup_video_pipeline() {
     }
     // Multimedia timing comes from the STREAM timebase; the codec context
     // inherits it so pts values match the stream.
-    av_codec_set_pkt_timebase(codec_.ctx, stream->time_base);
+    codec_.ctx->pkt_timebase = stream->time_base;
     if (const int open_res = avcodec_open2(codec_.ctx, codec, nullptr); open_res < 0) {
         close();
         return failure(ErrorCode::Unsupported,

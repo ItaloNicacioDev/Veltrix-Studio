@@ -18,6 +18,8 @@
 
 namespace veltrix::cli {
 
+using veltrix::media::ffmpeg::AvDecoderFactory;
+
 using veltrix::core::CancellationToken;
 using veltrix::playback::AudioBlock;
 using veltrix::playback::IVideoDecoder;
