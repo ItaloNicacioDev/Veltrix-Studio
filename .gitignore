@@ -1,0 +1,21 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+compile_commands.json
+
+# IDE / editor state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Logs and local artifacts
+*.log
+logs/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
