@@ -30,14 +30,6 @@ using veltrix::playback::PixelFormat;
 using veltrix::playback::SeekMode;
 using veltrix::playback::VideoFrame;
 
-namespace {
-// Rational helpers (AVRational -> num/den passthrough).
-constexpr std::int64_t mul_no_overflow(std::int64_t a, std::int64_t b) {
-    // decode-time positions are small; guard anyway
-    return static_cast<std::int64_t>(static_cast<__int128>(a) * b);
-}
-} // namespace
-
 ResultVoid AvVideoDecoder::open(const std::string& path) {
     if (is_open())
         return failure(ErrorCode::Conflict, "decoder already open");
