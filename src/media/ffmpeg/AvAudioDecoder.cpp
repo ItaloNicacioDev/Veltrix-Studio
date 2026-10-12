@@ -154,7 +154,7 @@ ResultVoid AvAudioDecoder::seek(std::int64_t target_ticks, SeekMode mode) {
                        "avformat_seek_file failed: " + av_error_string(res));
     }
     avcodec_flush_buffers(codec_.ctx);
-    swr_.ctx ? (void)swr_convert(swr_.ctx, nullptr, 0, nullptr, 0) : (void)0; // flush swr state
+    if (swr_.ctx) swr_convert(swr_.ctx, nullptr, 0, nullptr, 0); // drop buffered samples
     eof_reached_ = false;
     end_of_stream_signaled_ = false;
     return veltrix::core::success();
