@@ -51,13 +51,29 @@ bool make_fixture(const std::filesystem::path& out) {
     if (std::filesystem::exists(out, ec)) return true;
     const std::string ffmpeg = find_ffmpeg_binary();
     if (ffmpeg.empty()) return false;
-    const std::string cmd =
-        "\"" + ffmpeg + "\" -y -hide_banner -loglevel error "
-        "-f lavfi -i testsrc2=duration=10:size=1920x1080:rate=30 "
-        "-f lavfi -i \"sine=frequency=440:duration=10\" "
-        "-af \"aformat=channel_layouts=stereo\" "
-        "-c:v libx264 -preset veryfast -pix_fmt yuv420p "
-        "-c:a aac -b:a 128k -shortest \"" + out.string() + "\"";
+    // Leading-quote cmd workaround (same as the test fixtures): std::system
+    // on Windows needs explicit cmd /c with doubled quotes when the binary
+    // path contains spaces.
+    std::string cmd;
+#ifdef _WIN32
+    cmd = "cmd /c \"\"";
+    cmd += ffmpeg;
+    cmd += "\" -y -hide_banner -loglevel error "
+           "-f lavfi -i testsrc2=duration=10:size=1920x1080:rate=30 "
+           "-f lavfi -i \"sine=frequency=440:duration=10\" "
+           "-af \"aformat=channel_layouts=stereo\" "
+           "-c:v libx264 -preset veryfast -pix_fmt yuv420p "
+           "-c:a aac -b:a 128k -shortest \"";
+    cmd += out.string();
+    cmd += "\"\"";
+#else
+    cmd = "\"" + ffmpeg + "\" -y -hide_banner -loglevel error "
+          "-f lavfi -i testsrc2=duration=10:size=1920x1080:rate=30 "
+          "-f lavfi -i \"sine=frequency=440:duration=10\" "
+          "-af \"aformat=channel_layouts=stereo\" "
+          "-c:v libx264 -preset veryfast -pix_fmt yuv420p "
+          "-c:a aac -b:a 128k -shortest \"" + out.string() + "\"";
+#endif
     return std::system(cmd.c_str()) == 0;
 }
 
