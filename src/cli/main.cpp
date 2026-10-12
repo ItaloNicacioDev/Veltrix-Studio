@@ -24,6 +24,13 @@
 #include "veltrix/timeline/Sequence.h"
 #include "veltrix/timeline/TimelineEditor.h"
 
+#ifdef VELTRIX_HAS_FFMPEG
+#include "veltrix/playback/Decoder.h"
+namespace veltrix::cli {
+std::unique_ptr<playback::IDecoderFactory> make_decoder_factory();
+}
+#endif
+
 namespace {
 
 int fail(const veltrix::core::Error& error) {
@@ -123,6 +130,14 @@ int cmd_probe(const std::string& media_path, const std::string& ffprobe_override
 }
 
 } // namespace
+
+#ifdef VELTRIX_HAS_FFMPEG
+#include <memory>
+namespace veltrix::cli {
+// Defined in cli/DecodeCommands.cpp (linked only with veltrix-ffmpeg).
+std::unique_ptr<playback::IDecoderFactory> make_decoder_factory() = delete;
+}
+#endif
 
 int main(int argc, char** argv) {
     if (argc < 2) {
