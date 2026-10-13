@@ -27,14 +27,16 @@ Este repositório contém a **fundação do core C++** do motor de edição — 
 | Cor | 📋 Contrato validado; conversões planejadas | `ColorContract.h` |
 | Plugins | 📋 Manifesto+compatibilidade testados; carregamento planejado | `PluginManifest` |
 | veltrix-cli | ✅ `info`/`new`/`check`/`probe`/`decode` funcionando | smoke test executado |
+| **Interface gráfica Qt Quick (`veltrix-studio`)** | ✅ **Janela real + preview funcional (Fase Interface)** | smoke automatizado + screenshot verificado |
 
 **Testes: 1631 assertions, 90 casos — todos aprovados** (MSVC 19.51 / Ninja
 / CMake 3.24+, Release, camada FFmpeg LGPL 9.0 linkada dinamicamente).
 
 > **O que NÃO existe ainda**: playback contínuo (clock, scheduling,
 > sincronização A/V, device de saída), composição de pixels, export. O que
-> existe é decodificação real comprovada e "frame em posição" para preview
-> pontual — sem nenhuma interface gráfica.
+> existe: decodificação real comprovada, "frame em posição" para preview
+> pontual **e uma interface gráfica Qt Quick funcional (abrir mídia,
+> scrub, decodificar, exibir frame) consumindo o core sem conhecer FFmpeg**.
 
 ## Build rápido
 

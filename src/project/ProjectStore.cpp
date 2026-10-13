@@ -95,6 +95,8 @@ json stream_to_json(const media::StreamInfo& s) {
     j["channels"] = s.channels;
     j["fps_num"] = s.fps_num;
     j["fps_den"] = s.fps_den;
+    j["timebase_num"] = s.timebase_num;
+    j["timebase_den"] = s.timebase_den;
     j["duration_us"] = s.duration_us;
     return j;
 }
@@ -287,6 +289,10 @@ Result<media::MediaItem> parse_media_item(const json& node) {
                 info.fps_num = f->get<std::int64_t>();
             if (auto f = s.find("fps_den"); f != s.end() && f->is_number_integer())
                 info.fps_den = f->get<std::int64_t>();
+            if (auto f = s.find("timebase_num"); f != s.end() && f->is_number_integer())
+                info.timebase_num = f->get<std::int64_t>();
+            if (auto f = s.find("timebase_den"); f != s.end() && f->is_number_integer())
+                info.timebase_den = f->get<std::int64_t>();
             if (auto f = s.find("duration_us"); f != s.end() && f->is_number_integer())
                 info.duration_us = f->get<std::int64_t>();
             item.streams.push_back(std::move(info));

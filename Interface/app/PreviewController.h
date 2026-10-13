@@ -26,6 +26,7 @@
 
 #include "veltrix/jobs/JobManager.h"
 #include "veltrix/media/MediaRegistry.h"
+#include "veltrix/media/MediaPathResolver.h"
 #include "veltrix/playback/FrameRequestor.h"
 
 namespace veltrix::ui {
@@ -51,6 +52,8 @@ public:
     ~PreviewController() override;
 
     // Dependency injection (no globals): called once at app startup.
+    // Takes OWNERSHIP of the factory: FrameRequestor stores a reference,
+    // so the factory must outlive it — the controller keeps it alive.
     void set_factory_provider(IDecoderFactoryProvider* provider);
 
     QString mediaPath() const { return media_path_; }
@@ -86,6 +89,7 @@ public slots:
 private:
     void set_status(const QString& message);
     void set_decoding(bool value);
+    void register_media(const QString& path);
     std::shared_ptr<veltrix::playback::FrameRequestHandle> current_handle_;
     std::shared_ptr<veltrix::core::CancellationToken> current_token_;
 
@@ -98,6 +102,11 @@ private:
     std::unique_ptr<veltrix::media::MediaRegistry> registry_;
     std::unique_ptr<veltrix::media::MediaPathResolver> resolver_;
     std::unique_ptr<veltrix::playback::FrameRequestor> requestor_;
+    // OWNS the factory: FrameRequestor holds a raw reference to it; without
+    // ownership the factory would dangle after set_factory_provider (this
+    // was the intermittent startup crash — Result's unique_ptr moved out and
+    // destroyed at the end of the setup expression).
+    std::unique_ptr<veltrix::playback::IDecoderFactory> factory_;
     IDecoderFactoryProvider* factory_provider_ = nullptr;
 
     // Decoded result handoff from worker -> QML thread.

@@ -5,6 +5,8 @@
 #include <QMetaObject>
 #include <QThread>
 
+#include <cstdio>
+
 #include "veltrix/core/CancellationToken.h"
 #include "veltrix/core/Result.h"
 #include "veltrix/media/MediaPathResolver.h"
@@ -23,35 +25,43 @@ PreviewController::PreviewController(QObject* parent) : QObject(parent) {
 }
 
 PreviewController::~PreviewController() {
-    // Jobs must finish before members die (JobManager joins its worker on
-    // destruction; the requestor/registry outlive the worker by order).
+    // CRITICAL ORDERING: the worker may be executing a job whose lambda
+    // touches requestor_/registry_/resolver_. Shut the worker down HERE,
+    // while every member is still alive (unique_ptrs declared after jobs_
+    // would die before it in reverse-declaration order).
     if (jobs_) jobs_->shutdown();
+    jobs_.reset();
 }
 
 void PreviewController::set_factory_provider(IDecoderFactoryProvider* provider) {
     factory_provider_ = provider;
-    if (provider) {
-        auto factory = provider->create_factory();
-        if (factory.is_ok()) {
-            resolver_ = std::make_unique<veltrix::media::MediaPathResolver>(*registry_);
-            requestor_ = std::make_unique<veltrix::playback::FrameRequestor>(
-                *factory.take_value(), *resolver_);
-            emit engineInfo(QString::fromUtf8(engineName()));
-        } else {
-            set_status(QString::fromUtf8(factory.error().to_string().c_str()));
-        }
+    if (!provider) return;
+    auto factory = provider->create_factory();
+    if (factory.is_error()) {
+        const std::string err(factory.error().to_string());
+        set_status(QString::fromUtf8(err.c_str()));
+        return;
     }
+    // OWN the factory (FrameRequestor keeps a reference to it).
+    factory_ = factory.take_value();
+    resolver_ = std::make_unique<veltrix::media::MediaPathResolver>(*registry_);
+    requestor_ = std::make_unique<veltrix::playback::FrameRequestor>(
+        *factory_, *resolver_);
+    const std::string name(requestor_->engine_name());
+    emit engineInfo(QString::fromUtf8(name.c_str()));
 }
 
 QString PreviewController::engineName() const {
-    return requestor_ ? QString::fromUtf8(requestor_->engine_name()) : QStringLiteral("none");
+    if (!requestor_) return QStringLiteral("none");
+    const std::string name(requestor_->engine_name());
+    return QString::fromUtf8(name.c_str());
 }
 
 void PreviewController::setMediaPath(const QString& path) {
     if (media_path_ == path) return;
     media_path_ = path;
     emit mediaChanged();
-    if (!path.isEmpty()) registerMedia(path);
+    if (!path.isEmpty()) register_media(path);
 }
 
 void PreviewController::openMedia(const QString& path) {
@@ -64,7 +74,7 @@ void PreviewController::clearMedia() {
     emit frameReady(QImage(), 0);
 }
 
-void PreviewController::registerMedia(const QString& path) {
+void PreviewController::register_media(const QString& path) {
     // Convert QString (UTF-16) -> std::string (UTF-8): the core consumes UTF-8.
     const std::string utf8_path = path.toStdString();
     auto existing = registry_->find_by_path(utf8_path);
@@ -74,7 +84,8 @@ void PreviewController::registerMedia(const QString& path) {
     } else {
         auto registered = registry_->register_media(utf8_path);
         if (registered.is_error()) {
-            set_status(QString::fromUtf8(registered.error().to_string().c_str()));
+            const std::string err(registered.error().to_string());
+            set_status(QString::fromUtf8(err.c_str()));
             return;
         }
         id = registered.value();
@@ -125,22 +136,33 @@ void PreviewController::requestFrameAt(double position_seconds) {
     }
 
     set_decoding(true);
-    // Position in MEDIA ticks: the requestor interprets ticks in the
-    // media's video timebase. We do not know the fps here — the requestor
-    // receives SECONDS converted via the decoder timebase inside
-    // await_frame's seek... The FrameRequestor takes ticks; the UI passes
-    // position * fps. Since the registry probe stored stream fps, use it.
-    double fps = 0.0;
+    // Position conversion: the FrameRequestor takes ticks in the media's
+    // DECODER timebase (stream timebase from the probe, e.g. 1/12288).
+    // ticks = seconds * tb_den / tb_num. Fallback: fps-based ticks.
+    std::int64_t ticks = 0;
     if (const auto* item = registry_->find(media_id)) {
         for (const auto& s : item->streams) {
-            if (s.fps_den > 0 && s.fps_num > 0 && (s.width > 0)) {
-                fps = static_cast<double>(s.fps_num) / s.fps_den;
+            if (s.width > 0 && s.timebase_den > 0) {
+                const double ticks_per_second =
+                    static_cast<double>(s.timebase_den) /
+                    static_cast<double>(s.timebase_num > 0 ? s.timebase_num : 1);
+                ticks = static_cast<std::int64_t>(position_seconds * ticks_per_second);
                 break;
             }
         }
+        if (ticks == 0) {
+            // Fallback when the probe did not report a timebase.
+            double fps = 0.0;
+            for (const auto& s : item->streams) {
+                if (s.fps_den > 0 && s.fps_num > 0 && s.width > 0) {
+                    fps = static_cast<double>(s.fps_num) / s.fps_den;
+                    break;
+                }
+            }
+            if (fps > 0.0)
+                ticks = static_cast<std::int64_t>(position_seconds * fps);
+        }
     }
-    const std::int64_t ticks =
-        fps > 0.0 ? static_cast<std::int64_t>(position_seconds * fps) : 0;
 
     auto handle = std::make_shared<FrameRequestHandle>(
         requestor_->request_frame(media_id, ticks));
@@ -157,7 +179,8 @@ void PreviewController::requestFrameAt(double position_seconds) {
             QMetaObject::invokeMethod(this, [this, frame = std::move(frame)]() mutable {
                 if (frame.is_error()) {
                     decode_failed_ = true;
-                    decode_error_ = QString::fromUtf8(frame.error().to_string().c_str());
+                    const std::string err(frame.error().to_string());
+                    decode_error_ = QString::fromUtf8(err.c_str());
                 } else {
                     pending_frame_ = frame.take_value();
                     has_pending_frame_ = true;

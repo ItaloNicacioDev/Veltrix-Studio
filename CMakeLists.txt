@@ -54,6 +54,19 @@ if(VELTRIX_BUILD_UI)
         list(PREPEND CMAKE_PREFIX_PATH "${_veltrix_qt_root}")
     endif()
 
+    # The Qt Design Studio "reduced" kit ships cmake configs for Design
+    # Studio-private modules (example asset downloaders etc.) whose libs
+    # do not exist in the kit. Qt6Config loads every installed config, so
+    # explicitly disable the ones we never use and that would fail.
+    set(CMAKE_DISABLE_FIND_PACKAGE_Qt6ExamplesAssetDownloaderPrivate ON)
+    set(CMAKE_DISABLE_FIND_PACKAGE_Qt6QmlAssetDownloader ON)
+    set(CMAKE_DISABLE_FIND_PACKAGE_Qt6QmlAssetDownloaderPrivate ON)
+    # ...and skip Qt's automatic QML plugin inclusion entirely (the kit
+    # lacks the plugin binaries its configs reference; the QML engine
+    # loads the runtime plugins it needs from qml/ on its own).
+    set(QT_SKIP_AUTO_QML_PLUGIN_INCLUSION ON)
+    set(QT_SKIP_AUTO_PLUGIN_INCLUSION ON)
+
     find_package(Qt6 QUIET COMPONENTS Quick QuickControls2 Gui Qml)
     if(Qt6_FOUND)
         message(STATUS "Veltrix UI: Qt ${Qt6_VERSION} at ${Qt6_DIR}")

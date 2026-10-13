@@ -47,6 +47,10 @@ struct StreamInfo {
     // Exact frame rate / sample duration as reported by the container.
     std::int64_t fps_num = 0;
     std::int64_t fps_den = 0;
+    // Stream timebase (e.g. "1/12288"): positions in the DECODER are in
+    // these units — seconds = ticks * tb_num / tb_den.
+    std::int64_t timebase_num = 0;
+    std::int64_t timebase_den = 0;
     std::int64_t duration_us = 0; // microseconds when known; 0 = unknown
 };
 

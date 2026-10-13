@@ -332,6 +332,12 @@ ResultVoid MediaProber::probe(MediaItem& item, const std::string& ffprobe_path,
                     info.fps_num = num;
                     info.fps_den = den;
                 }
+                // Stream timebase for decoder-space positions.
+                if (auto f = s.find("time_base"); f != s.end() && f->is_string() &&
+                    parse_fraction(f->get<std::string>(), num, den) && den > 0) {
+                    info.timebase_num = num;
+                    info.timebase_den = den;
+                }
                 if (auto f = s.find("duration"); f != s.end() && f->is_string())
                     seconds_to_us(f->get<std::string>(), info.duration_us);
             } else if (codec_type == "audio") {
@@ -343,6 +349,13 @@ ResultVoid MediaProber::probe(MediaItem& item, const std::string& ffprobe_path,
                 }
                 if (auto f = s.find("channels"); f != s.end() && f->is_number())
                     info.channels = f->get<std::int32_t>();
+                if (auto f = s.find("time_base"); f != s.end() && f->is_string()) {
+                    std::int64_t num = 0, den = 1;
+                    if (parse_fraction(f->get<std::string>(), num, den) && den > 0) {
+                        info.timebase_num = num;
+                        info.timebase_den = den;
+                    }
+                }
                 if (auto f = s.find("duration"); f != s.end() && f->is_string())
                     seconds_to_us(f->get<std::string>(), info.duration_us);
             } else {
