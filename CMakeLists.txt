@@ -35,6 +35,35 @@ configure_file(
 
 add_subdirectory(src)
 
+# ----------------------------------------------------------------------------
+# veltrix-studio: OPTIONAL Qt Quick/QML graphical app. All interface files
+# live in Interface/ (project rule). Built only when a Qt6 SDK with Quick
+# is found: VELTRIX_QT_DIR, CMAKE_PREFIX_PATH, or standard locations.
+# Without Qt, this target is skipped — core/CLI/tests are unaffected.
+# ----------------------------------------------------------------------------
+option(VELTRIX_BUILD_UI "Build the Qt Quick UI app (requires Qt6 SDK)" ON)
+
+if(VELTRIX_BUILD_UI)
+    set(_veltrix_qt_root "")
+    if(VELTRIX_QT_DIR)
+        set(_veltrix_qt_root "${VELTRIX_QT_DIR}")
+    elseif(DEFINED ENV{VELTRIX_QT_DIR})
+        set(_veltrix_qt_root "$ENV{VELTRIX_QT_DIR}")
+    endif()
+    if(_veltrix_qt_root)
+        list(PREPEND CMAKE_PREFIX_PATH "${_veltrix_qt_root}")
+    endif()
+
+    find_package(Qt6 QUIET COMPONENTS Quick QuickControls2 Gui Qml)
+    if(Qt6_FOUND)
+        message(STATUS "Veltrix UI: Qt ${Qt6_VERSION} at ${Qt6_DIR}")
+        add_subdirectory(Interface)
+    else()
+        message(STATUS "Veltrix UI: Qt6 not found -> UI app skipped "
+                       "(set VELTRIX_QT_DIR to enable)")
+    endif()
+endif()
+
 if(VELTRIX_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
