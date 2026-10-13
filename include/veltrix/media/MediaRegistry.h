@@ -35,6 +35,14 @@ public:
     // recomputed afterwards via refresh_availability().
     ResultVoid load_item(MediaItem item);
 
+    // Finds a registered item by path (used by the UI to avoid double
+    // registration on repeated open of the same file).
+    const MediaItem* find_by_path(const std::string& path) const {
+        for (const auto& item : items_)
+            if (item.path == path) return &item;
+        return nullptr;
+    }
+
     ResultVoid remove_media(veltrix::core::MediaId id);
     const MediaItem* find(veltrix::core::MediaId id) const;
     MediaItem* find(veltrix::core::MediaId id);
