@@ -4,22 +4,35 @@
 # target compiles the C++ bridge from Interface/app and loads QML from
 # Interface/qml at runtime (path resolved in main.cpp relative to the
 # executable, with source-tree fallback for dev builds).
+#
+# NOTE: this SDK (Qt Design Studio "reduced" kit) lacks Qt6EntryPoint
+# import libs, so we use a plain add_executable with the WIN32 flag
+# instead of qt_add_executable's entry-point machinery. qt_add_qml_module
+# still registers the QML files as resources of the app.
 
-qt_add_executable(veltrix-studio
+qt_add_qml_module(veltrix_ui_module
+    URI Veltrix.Interface
+    VERSION 1.0
+    QML_FILES
+        qml/Main.qml
+    NO_PLUGIN
+    NO_CREATE_TARGETS)
+
+add_executable(veltrix-studio
     app/main.cpp
     app/PreviewController.cpp
     app/PreviewController.h
     app/FrameImageProvider.h)
 
-set_target_properties(veltrix-studio PROPERTIES
-    WIN32_EXECUTABLE TRUE
-    MACOSX_BUNDLE TRUE)
+# This Qt kit ("reduced" Design Studio) omits Qt6EntryPoint import libs.
+# Link as a console-subsystem executable with the standard CRT entry so no
+# WinMain/EntryPoint shim is needed; the window is still a normal GUI app.
+if(MSVC)
+    target_link_options(veltrix-studio PRIVATE "/ENTRY:mainCRTStartup")
+endif()
 
-qt_add_qml_module(veltrix-studio
-    URI Veltrix.Interface
-    VERSION 1.0
-    QML_FILES
-        qml/Main.qml)
+# The qml module resources (Main.qml) are compiled into the binary.
+target_link_libraries(veltrix-studio PRIVATE veltrix_ui_module)
 
 target_include_directories(veltrix-studio PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/app
@@ -50,5 +63,12 @@ if(MSVC)
     set_property(TARGET veltrix-studio PROPERTY CXX_EXTENSIONS OFF)
 endif()
 
-# Development run helper: alias for the app; runtime Qt/libav DLLs must be
-# reachable (windeployqt or PATH) — documented in Interface/README.md.
+# Dev convenience: place Main.qml under build/Interface/qml so the
+# executable's relative lookup finds it when running from the build dir.
+add_custom_command(TARGET veltrix-studio POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:veltrix-studio>/../Interface/qml"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/Main.qml"
+        "$<TARGET_FILE_DIR:veltrix-studio>/../Interface/qml/Main.qml"
+    COMMENT "Placing Main.qml under build/Interface/qml for dev runs")
